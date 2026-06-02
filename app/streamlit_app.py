@@ -12,21 +12,24 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.dashboard.components import render_header
 from src.dashboard.data_access import (
+    load_bottleneck_analysis,
     load_data_quality_report,
     load_event_log,
     load_operational_case_times,
     load_raw_case_times,
+    load_recommendations,
+    load_variant_analysis,
     validate_required_files,
 )
 from src.dashboard.views import (
-    render_bottleneck_placeholder,
+    render_bottleneck_analysis_view,
     render_data_quality_view,
     render_executive_overview,
     render_prediction_placeholder,
     render_process_layers_view,
-    render_recommendations_placeholder,
+    render_recommendations_view,
     render_root_cause_placeholder,
-    render_variant_placeholder,
+    render_variant_intelligence_view,
 )
 
 
@@ -72,7 +75,10 @@ def render_sidebar() -> str:
             unsafe_allow_html=True,
         )
 
-        st.markdown('<div class="sidebar-section-label">Navigation</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="sidebar-section-label">Navigation</div>',
+            unsafe_allow_html=True,
+        )
 
         for item in NAVIGATION_ITEMS:
             is_active = st.session_state.selected_view == item
@@ -89,7 +95,10 @@ def render_sidebar() -> str:
 
         st.markdown("---")
 
-        st.markdown('<div class="sidebar-section-label">System Status</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="sidebar-section-label">System Status</div>',
+            unsafe_allow_html=True,
+        )
 
         st.markdown(
             """
@@ -117,6 +126,9 @@ def main() -> None:
     raw_cases = load_raw_case_times()
     operational_cases = load_operational_case_times()
     data_quality_report = load_data_quality_report()
+    variant_analysis = load_variant_analysis()
+    bottleneck_analysis = load_bottleneck_analysis()
+    recommendations = load_recommendations()
 
     if selected_view == "🏠 Executive Overview":
         render_executive_overview(
@@ -134,16 +146,16 @@ def main() -> None:
         )
 
     elif selected_view == "🧭 Variant Intelligence":
-        render_variant_placeholder(operational_cases)
+        render_variant_intelligence_view(variant_analysis)
 
     elif selected_view == "⏱️ Bottleneck Analysis":
-        render_bottleneck_placeholder()
+        render_bottleneck_analysis_view(bottleneck_analysis)
 
     elif selected_view == "🔎 Root Cause":
         render_root_cause_placeholder(operational_cases)
 
     elif selected_view == "🎯 Recommendations":
-        render_recommendations_placeholder()
+        render_recommendations_view(recommendations)
 
     elif selected_view == "⚠️ Prediction & Risk":
         render_prediction_placeholder()

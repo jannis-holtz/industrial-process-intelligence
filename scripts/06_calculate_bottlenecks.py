@@ -31,10 +31,26 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     return event_log, clean_cases
 
 
-def build_transition_table(event_log: pd.DataFrame, clean_cases: pd.DataFrame) -> pd.DataFrame:
+def build_transition_table(
+    event_log: pd.DataFrame,
+    clean_cases: pd.DataFrame,
+) -> pd.DataFrame:
     clean_case_ids = set(clean_cases["case_id"])
 
-    events = event_log[event_log["case_id"].isin(clean_case_ids)].copy()
+    # Only keep the event-level columns needed for transition calculation.
+    # This prevents duplicated case attributes like item_category_x / item_category_y after merging.
+    required_event_columns = ["case_id", "activity", "timestamp", "resource"]
+    missing_event_columns = [
+        column for column in required_event_columns if column not in event_log.columns
+    ]
+
+    if missing_event_columns:
+        raise ValueError(f"Missing event log columns: {missing_event_columns}")
+
+    events = event_log.loc[
+        event_log["case_id"].isin(clean_case_ids),
+        required_event_columns,
+    ].copy()
 
     events = events.sort_values(["case_id", "timestamp", "activity"])
 
@@ -56,20 +72,39 @@ def build_transition_table(event_log: pd.DataFrame, clean_cases: pd.DataFrame) -
         transitions["activity"] + " → " + transitions["next_activity"]
     )
 
-    case_attributes = clean_cases[
-        [
-            "case_id",
-            "company",
-            "item_category",
-            "document_type",
-            "vendor",
-            "cycle_time_days",
-        ]
+    required_case_columns = [
+        "case_id",
+        "company",
+        "item_category",
+        "document_type",
+        "vendor",
+        "cycle_time_days",
     ]
 
-    transitions = transitions.merge(case_attributes, on="case_id", how="left")
+    missing_case_columns = [
+        column for column in required_case_columns if column not in clean_cases.columns
+    ]
+
+    if missing_case_columns:
+        raise ValueError(f"Missing clean case columns: {missing_case_columns}")
+
+    case_attributes = clean_cases[required_case_columns].copy()
+
+    transitions = transitions.merge(
+        case_attributes,
+        on="case_id",
+        how="left",
+        validate="many_to_one",
+    )
 
     return transitions
+
+
+def most_frequent_value(values: pd.Series):
+    mode = values.dropna().mode()
+    if mode.empty:
+        return None
+    return mode.iloc[0]
 
 
 def calculate_bottleneck_analysis(transitions: pd.DataFrame) -> pd.DataFrame:
@@ -81,17 +116,14 @@ def calculate_bottleneck_analysis(transitions: pd.DataFrame) -> pd.DataFrame:
             transition_count=("transition", "count"),
             average_waiting_time_days=("waiting_time_days", "mean"),
             median_waiting_time_days=("waiting_time_days", "median"),
-            p90_waiting_time_days=("waiting_time_days", lambda values: values.quantile(0.90)),
+            p90_waiting_time_days=(
+                "waiting_time_days",
+                lambda values: values.quantile(0.90),
+            ),
             total_waiting_time_days=("waiting_time_days", "sum"),
             affected_cases=("case_id", "nunique"),
-            dominant_item_category=(
-                "item_category",
-                lambda values: values.mode().iloc[0] if not values.mode().empty else None,
-            ),
-            dominant_document_type=(
-                "document_type",
-                lambda values: values.mode().iloc[0] if not values.mode().empty else None,
-            ),
+            dominant_item_category=("item_category", most_frequent_value),
+            dominant_document_type=("document_type", most_frequent_value),
         )
         .reset_index()
     )
@@ -104,8 +136,8 @@ def calculate_bottleneck_analysis(transitions: pd.DataFrame) -> pd.DataFrame:
         bottlenecks["total_waiting_time_days"] / total_waiting_time * 100
     )
 
-    # Impact combines frequency and waiting time contribution.
-    # It prioritizes transitions that are both common and operationally expensive.
+    # Impact combines waiting-time contribution and typical waiting time.
+    # This prioritizes transitions that are both frequent enough and operationally expensive.
     bottlenecks["impact_score"] = (
         bottlenecks["share_of_total_waiting_time_pct"]
         * bottlenecks["median_waiting_time_days"]

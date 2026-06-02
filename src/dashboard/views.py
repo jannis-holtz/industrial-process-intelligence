@@ -9,6 +9,7 @@ from src.dashboard.charts import (
 from src.dashboard.components import (
     module_container,
     render_decision_summary,
+    render_kpi_card,
     render_kpi_row,
     render_platform_layers,
     render_quality_status_banner,
@@ -256,6 +257,252 @@ def render_data_quality_view(
         )
 
 
+def render_variant_intelligence_view(variant_analysis: pd.DataFrame) -> None:
+    st.markdown("## Variant Intelligence")
+
+    total_variants = len(variant_analysis)
+    top_10_coverage = variant_analysis.head(10)["share_of_cases_pct"].sum()
+    top_25_coverage = variant_analysis.head(25)["share_of_cases_pct"].sum()
+
+    with module_container(
+        title="Decision Focus",
+        subtitle="Identify dominant process paths and prioritize inefficient high-volume variants.",
+        eyebrow="Decision Question",
+    ):
+        st.markdown(
+            f"""
+            <div class="decision-box">
+                The process contains <strong>{total_variants:,}</strong> distinct variants.
+                The Top 10 variants cover <strong>{top_10_coverage:.2f}%</strong> of operational cases,
+                while the Top 25 variants cover <strong>{top_25_coverage:.2f}%</strong>.
+                This means improvement work can focus on a manageable set of high-volume paths first.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        render_kpi_card(
+            icon="🧭",
+            label="Distinct Variants",
+            value=f"{total_variants:,}",
+            delta="process complexity",
+            positive=False,
+        )
+
+    with col2:
+        render_kpi_card(
+            icon="🎯",
+            label="Top 10 Coverage",
+            value=f"{top_10_coverage:.1f}%",
+            delta="case concentration",
+            positive=True,
+        )
+
+    with col3:
+        render_kpi_card(
+            icon="📌",
+            label="Top 25 Coverage",
+            value=f"{top_25_coverage:.1f}%",
+            delta="focus area",
+            positive=True,
+        )
+
+    st.write("")
+
+    top_variants = variant_analysis[
+        [
+            "variant_rank",
+            "case_count",
+            "share_of_cases_pct",
+            "median_cycle_time_days",
+            "p90_cycle_time_days",
+            "average_event_count",
+            "dominant_item_category",
+            "variant_name",
+        ]
+    ].head(15)
+
+    with module_container(
+        title="Top Variants by Case Volume",
+        subtitle="Most frequent process paths in the operational KPI view.",
+        eyebrow="Variant Ranking",
+    ):
+        st.dataframe(
+            styled_dataframe(top_variants),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    highest_impact = (
+        variant_analysis[
+            [
+                "variant_rank",
+                "case_count",
+                "share_of_cases_pct",
+                "median_cycle_time_days",
+                "impact_score",
+                "dominant_item_category",
+                "variant_name",
+            ]
+        ]
+        .sort_values("impact_score", ascending=False)
+        .head(15)
+    )
+
+    with module_container(
+        title="Highest Impact Variants",
+        subtitle="Variants with a combination of high volume and high median cycle time.",
+        eyebrow="Improvement Priority",
+    ):
+        st.dataframe(
+            styled_dataframe(highest_impact),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with module_container(
+        title="Interpretation",
+        subtitle="What this means for process improvement.",
+        eyebrow="Business Insight",
+    ):
+        st.markdown(
+            """
+            The process has a large number of variants, but most operational volume is concentrated
+            in a limited set of dominant paths. Improvement initiatives should first target variants
+            that combine high case volume with high median cycle time or payment-block-related activities.
+            """
+        )
+
+
+def render_bottleneck_analysis_view(bottleneck_analysis: pd.DataFrame) -> None:
+    st.markdown("## Bottleneck Analysis")
+
+    top_bottleneck = bottleneck_analysis.iloc[0]
+    top_10_wait_share = bottleneck_analysis.head(10)[
+        "share_of_total_waiting_time_pct"
+    ].sum()
+
+    with module_container(
+        title="Decision Focus",
+        subtitle="Identify transitions with high waiting time and high operational impact.",
+        eyebrow="Decision Question",
+    ):
+        st.markdown(
+            f"""
+            <div class="decision-box">
+                The strongest bottleneck is <strong>{top_bottleneck["transition"]}</strong>.
+                It accounts for <strong>{top_bottleneck["share_of_total_waiting_time_pct"]:.2f}%</strong>
+                of total observed waiting time and has a median wait of
+                <strong>{top_bottleneck["median_waiting_time_days"]:.2f} days</strong>.
+                The Top 10 bottlenecks account for <strong>{top_10_wait_share:.2f}%</strong>
+                of total waiting time.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        render_kpi_card(
+            icon="⏱️",
+            label="Relevant Transitions",
+            value=f"{len(bottleneck_analysis):,}",
+            delta="after frequency threshold",
+            positive=True,
+        )
+
+    with col2:
+        render_kpi_card(
+            icon="🔥",
+            label="Top Bottleneck Share",
+            value=f"{top_bottleneck['share_of_total_waiting_time_pct']:.1f}%",
+            delta="of total waiting time",
+            positive=False,
+        )
+
+    with col3:
+        render_kpi_card(
+            icon="📌",
+            label="Top 10 Wait Share",
+            value=f"{top_10_wait_share:.1f}%",
+            delta="focus area",
+            positive=False,
+        )
+
+    st.write("")
+
+    top_by_impact = bottleneck_analysis[
+        [
+            "bottleneck_rank",
+            "transition",
+            "transition_count",
+            "median_waiting_time_days",
+            "p90_waiting_time_days",
+            "total_waiting_time_days",
+            "share_of_total_waiting_time_pct",
+            "impact_score",
+            "dominant_item_category",
+        ]
+    ].head(15)
+
+    with module_container(
+        title="Top Bottlenecks by Impact Score",
+        subtitle="Transitions prioritized by waiting-time contribution and typical delay.",
+        eyebrow="Impact Ranking",
+    ):
+        st.dataframe(
+            styled_dataframe(top_by_impact),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    top_by_total_wait = (
+        bottleneck_analysis[
+            [
+                "bottleneck_rank",
+                "transition",
+                "transition_count",
+                "median_waiting_time_days",
+                "p90_waiting_time_days",
+                "total_waiting_time_days",
+                "share_of_total_waiting_time_pct",
+                "dominant_item_category",
+            ]
+        ]
+        .sort_values("total_waiting_time_days", ascending=False)
+        .head(15)
+    )
+
+    with module_container(
+        title="Top Transitions by Total Waiting Time",
+        subtitle="Transitions contributing the largest absolute amount of waiting time.",
+        eyebrow="Waiting-Time Contribution",
+    ):
+        st.dataframe(
+            styled_dataframe(top_by_total_wait),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with module_container(
+        title="Interpretation",
+        subtitle="What this means for process improvement.",
+        eyebrow="Business Insight",
+    ):
+        st.markdown(
+            """
+            Bottleneck prioritization should focus first on invoice-related transitions.
+            The transition from invoice receipt to invoice clearing dominates total waiting time,
+            meaning that improvements in invoice clearing, payment block handling or related approval logic
+            are likely to have the largest operational leverage.
+            """
+        )
+
+
 def render_process_layers_view() -> None:
     st.markdown("## Solution Architecture")
 
@@ -331,7 +578,7 @@ def render_module_preview_grid() -> None:
                     Start → Purchase Order → Goods Receipt → Invoice Receipt → Clear Invoice
                 </p>
                 <p style="color:#38bdf8;font-size:0.78rem;">
-                    Planned: variant ranking by frequency and cycle time.
+                    Active: variant ranking by frequency and cycle time.
                 </p>
                 <div class="module-button">Explore Variants →</div>
             </div>
@@ -349,7 +596,7 @@ def render_module_preview_grid() -> None:
                     Focus: transitions with high frequency and high average waiting time.
                 </p>
                 <p style="color:#38bdf8;font-size:0.78rem;">
-                    Planned: bottleneck impact score.
+                    Active: bottleneck impact ranking.
                 </p>
                 <div class="module-button">Explore Bottlenecks →</div>
             </div>
@@ -376,6 +623,7 @@ def render_module_preview_grid() -> None:
         )
 
     st.markdown('<div class="module-grid-spacer"></div>', unsafe_allow_html=True)
+
     col4, col5, col6 = st.columns(3)
 
     with col4:
@@ -385,10 +633,10 @@ def render_module_preview_grid() -> None:
                 <div class="module-title">🎯 Recommendations</div>
                 <div class="module-subtitle">Translate findings into prioritized actions.</div>
                 <p style="color:#cbd5e1;font-size:0.78rem;">
-                    Rule-based recommendations based on bottleneck impact and frequency.
+                    Active: rule-based recommendations from bottleneck and variant signals.
                 </p>
                 <p style="color:#38bdf8;font-size:0.78rem;">
-                    Planned: action priority ranking.
+                    Active: action priority ranking.
                 </p>
                 <div class="module-button">View Recommendations →</div>
             </div>
@@ -431,116 +679,6 @@ def render_module_preview_grid() -> None:
             """,
             unsafe_allow_html=True,
         )
-
-
-def render_variant_placeholder(operational_cases: pd.DataFrame) -> None:
-    st.markdown("## Variant Intelligence")
-
-    with module_container(
-        title="Decision Focus",
-        subtitle="Identify frequent and inefficient process paths.",
-        eyebrow="Decision Question",
-    ):
-        st.markdown(
-            """
-            <div class="decision-box">
-                Which process variants occur most often, and which variants are operationally inefficient?
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    variant_basis = (
-        operational_cases.groupby("item_category")
-        .agg(
-            cases=("case_id", "count"),
-            median_cycle_time_days=("cycle_time_days", "median"),
-            p90_cycle_time_days=("cycle_time_days", lambda values: values.quantile(0.90)),
-        )
-        .reset_index()
-        .sort_values("cases", ascending=False)
-    )
-
-    variant_basis[["median_cycle_time_days", "p90_cycle_time_days"]] = variant_basis[
-        ["median_cycle_time_days", "p90_cycle_time_days"]
-    ].round(2)
-
-    with module_container(
-        title="Current Variant Proxy",
-        subtitle="Temporary proxy based on item categories until real activity-sequence variants are extracted.",
-        eyebrow="Variant Analysis",
-    ):
-        st.dataframe(
-            styled_dataframe(variant_basis),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-    with module_container(
-        title="Implementation Status",
-        subtitle="The next step is extracting real activity sequences per case.",
-        eyebrow="Roadmap",
-    ):
-        st.info("Next implementation step: extract real activity sequences per case and rank process variants.")
-
-
-def render_bottleneck_placeholder() -> None:
-    st.markdown("## Bottleneck Analysis")
-
-    with module_container(
-        title="Decision Focus",
-        subtitle="Identify transitions with high waiting time and high operational impact.",
-        eyebrow="Decision Question",
-    ):
-        st.markdown(
-            """
-            <div class="decision-box">
-                Which process transitions cause the highest waiting time and should be prioritized?
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    demo = pd.DataFrame(
-        [
-            {
-                "Transition": "Goods Receipt → Invoice Receipt",
-                "Avg Wait Days": 18.4,
-                "Frequency": 42011,
-                "Impact": "High",
-            },
-            {
-                "Transition": "Vendor Invoice → Clear Invoice",
-                "Avg Wait Days": 12.7,
-                "Frequency": 38120,
-                "Impact": "High",
-            },
-            {
-                "Transition": "Purchase Order → Goods Receipt",
-                "Avg Wait Days": 9.6,
-                "Frequency": 50212,
-                "Impact": "Medium",
-            },
-        ]
-    )
-
-    with module_container(
-        title="Initial Bottleneck Candidates",
-        subtitle="Placeholder candidates until real transition waiting-time logic is implemented.",
-        eyebrow="Transition Analysis",
-    ):
-        st.dataframe(
-            styled_dataframe(demo),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-    with module_container(
-        title="Implementation Status",
-        subtitle="What will be built next for this module.",
-        eyebrow="Roadmap",
-    ):
-        st.info("Next implementation step: calculate real transition waiting times from event sequences.")
 
 
 def render_root_cause_placeholder(operational_cases: pd.DataFrame) -> None:
@@ -592,55 +730,97 @@ def render_root_cause_placeholder(operational_cases: pd.DataFrame) -> None:
         )
 
 
-def render_recommendations_placeholder() -> None:
+def render_recommendations_view(recommendations: pd.DataFrame) -> None:
     st.markdown("## Recommendations")
+
+    top_recommendation = recommendations.iloc[0]
+    high_priority_count = (recommendations["priority"] == "High").sum()
+    medium_priority_count = (recommendations["priority"] == "Medium").sum()
 
     with module_container(
         title="Decision Focus",
-        subtitle="Prioritize improvement actions based on observed process issues.",
+        subtitle="Translate process findings into prioritized improvement actions.",
         eyebrow="Decision Question",
     ):
         st.markdown(
-            """
+            f"""
             <div class="decision-box">
-                Which improvement action should be investigated first?
+                The highest-priority recommendation is:
+                <strong>{top_recommendation["focus_area"]}</strong>.
+                It is based on <strong>{top_recommendation["source_module"]}</strong>
+                and addresses: {top_recommendation["observed_issue"]}
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    recommendations = pd.DataFrame(
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        render_kpi_card(
+            icon="🎯",
+            label="Recommendations",
+            value=f"{len(recommendations):,}",
+            delta="generated actions",
+            positive=True,
+        )
+
+    with col2:
+        render_kpi_card(
+            icon="🔥",
+            label="High Priority",
+            value=f"{high_priority_count:,}",
+            delta="immediate focus",
+            positive=False,
+        )
+
+    with col3:
+        render_kpi_card(
+            icon="📌",
+            label="Medium Priority",
+            value=f"{medium_priority_count:,}",
+            delta="next review",
+            positive=True,
+        )
+
+    st.write("")
+
+    recommendation_table = recommendations[
         [
-            {
-                "Priority": 1,
-                "Recommendation": "Analyze invoice clearing delays",
-                "Rationale": "High-frequency transition with potentially high waiting time.",
-                "Expected Lever": "Reduce operational cycle time",
-            },
-            {
-                "Priority": 2,
-                "Recommendation": "Review cases with payment block removal",
-                "Rationale": "Payment blocks may indicate compliance or master data issues.",
-                "Expected Lever": "Reduce rework and exceptions",
-            },
-            {
-                "Priority": 3,
-                "Recommendation": "Separate analysis by item category",
-                "Rationale": "Different purchase categories follow different expected process paths.",
-                "Expected Lever": "Avoid misleading global KPI conclusions",
-            },
+            "priority_rank",
+            "priority",
+            "recommendation_type",
+            "focus_area",
+            "observed_issue",
+            "business_rationale",
+            "expected_lever",
+            "source_module",
         ]
-    )
+    ]
 
     with module_container(
-        title="Initial Recommendation Backlog",
-        subtitle="Rule-based recommendations that will later be connected to real bottleneck and rework signals.",
+        title="Prioritized Recommendation Backlog",
+        subtitle="Rule-based improvement priorities derived from bottleneck and variant analysis.",
         eyebrow="Action Prioritization",
     ):
         st.dataframe(
-            styled_dataframe(recommendations),
+            styled_dataframe(recommendation_table),
             use_container_width=True,
             hide_index=True,
+        )
+
+    with module_container(
+        title="Interpretation",
+        subtitle="How to use these recommendations.",
+        eyebrow="Business Insight",
+    ):
+        st.markdown(
+            """
+            The recommendation layer does not automate management decisions.
+            It prioritizes where process owners should investigate first.
+            The strongest recommendations currently point toward invoice clearing,
+            payment block handling and high-volume process variants with elevated cycle time.
+            """
         )
 
 
