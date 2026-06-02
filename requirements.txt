@@ -1,0 +1,9 @@
+pandas
+numpy
+streamlit
+plotly
+pm4py
+python-dotenv
+pytest
+ruff
+pyarrow
