@@ -6,7 +6,16 @@ import streamlit as st
 from src.dashboard.data_access import OPERATIONAL_CYCLE_TIME_THRESHOLD_DAYS
 from src.dashboard.styles import CUSTOM_CSS
 
-
+def scroll_to_top() -> None:
+    st.markdown(
+        """
+        <script>
+            window.parent.scrollTo({top: 0, behavior: "smooth"});
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+    
 @contextmanager
 def module_container(
     title: str,

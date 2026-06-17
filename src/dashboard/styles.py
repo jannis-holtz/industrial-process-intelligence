@@ -303,11 +303,13 @@ CUSTOM_CSS = """
     .kpi-delta-positive {
         color: #34d399;
         font-size: 0.72rem;
+        font-weight: 650;
     }
 
     .kpi-delta-negative {
-        color: #f87171;
+        color: #38bdf8;
         font-size: 0.72rem;
+        font-weight: 650;
     }
 
     .module-card-small {
@@ -466,6 +468,48 @@ CUSTOM_CSS = """
         border-radius: 0.95rem !important;
     }
 
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(59, 130, 246, 0.18);
+        border-radius: 0.75rem 0.75rem 0 0;
+        color: #cbd5e1;
+        padding: 0.6rem 1rem;
+        font-weight: 650;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #ffffff;
+        background: rgba(37, 99, 235, 0.18);
+        border-color: rgba(96, 165, 250, 0.35);
+    }
+
+    .stTabs [aria-selected="true"] {
+        color: #ffffff !important;
+        background: rgba(29, 78, 216, 0.28) !important;
+        border-color: rgba(56, 189, 248, 0.45) !important;
+    }
+
+    .stTabs [data-baseweb="tab-highlight"] {
+        background: #38bdf8 !important;
+        height: 3px !important;
+        border-radius: 999px;
+    }
+
+    /* Streamlit info/warning blocks */
+    div[data-testid="stAlert"] {
+        border-radius: 0.9rem;
+        border-color: rgba(56, 189, 248, 0.35);
+        background: rgba(14, 116, 144, 0.12);
+        color: #e0f2fe;
+    }
+
     /* Metrics fallback */
     div[data-testid="stMetric"] {
         background: #0f172a;
@@ -493,6 +537,31 @@ CUSTOM_CSS = """
         margin-top: 1.5rem;
         border-top: 1px solid rgba(148,163,184,0.15);
         padding-top: 0.8rem;
+    }
+
+    .module-button-link {
+        display: block;
+        margin-top: -3.2rem;
+        margin-left: 1rem;
+        margin-right: 1rem;
+        background: rgba(37, 99, 235, 0.22);
+        border: 1px solid rgba(96, 165, 250, 0.42);
+        color: #bfdbfe !important;
+        border-radius: 0.75rem;
+        padding: 0.62rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none !important;
+        position: relative;
+        z-index: 5;
+    }
+
+    .module-button-link:hover {
+        background: rgba(37, 99, 235, 0.35);
+        border-color: rgba(96, 165, 250, 0.70);
+        color: #ffffff !important;
+        text-decoration: none !important;
     }
 </style>
 """
