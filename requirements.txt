@@ -7,4 +7,4 @@ python-dotenv
 pytest
 ruff
 pyarrow
-scikit-learn
+scikit-learnpytest
